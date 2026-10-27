@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prototype Workspace</title>
+<!-- dezibee:styles:start -->
+<style>
+/* ── 右栏：PRD ── */
+#prd {
+  width: var(--prd-w); flex: none; display: flex; flex-direction: column;
+  background: var(--panel); border-left: 1px solid var(--border);
+}
+.prd-head {
+  height: 40px; flex: none; display: flex; align-items: center;
+  justify-content: space-between; padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+.prd-toc-toggle {
+  width: 34px; height: 28px; padding: 0 !important;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 16px !important; line-height: 1;
+}
+.prd-toc-toggle.is-open {
+  background: #6b7280 !important; color: #fff !important;
+  border-color: #6b7280 !important;
+}
+.prd-toc-toggle.is-closed {
+  background: #fff !important; color: #111827 !important;
+}
+.prd-toc-toggle.is-open:hover { background: #4b5563 !important; color: #fff !important; }
+.prd-toc-toggle.is-closed:hover { background: #fff !important; color: #111827 !important; border-color: var(--accent) !important; }
+.prd-title { font-size: 13px; font-weight: 700; }
+.prd-toc {
+  max-height: 32vh; overflow: auto; padding: 8px 0;
+  border-bottom: 1px solid var(--border); background: #fafbfc;
+}
+.prd-toc.hidden { display: none; }
+.toc-item {
+  padding: 4px 14px; font-size: 12px; color: var(--text2);
+  cursor: pointer; border-left: 3px solid transparent;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.toc-item.lvl2 { padding-left: 14px; font-weight: 600; }
+.toc-item.lvl3 { padding-left: 28px; }
+.toc-item.lvl4 { padding-left: 42px; }
+.toc-item:hover { color: var(--accent); }
+.toc-item.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-soft); }
+.prd-body { flex: 1; overflow: auto; padding: 16px 18px 40px; }
+.prd-section { scroll-margin-top: 12px; }
+.prd-section h2, .prd-section h3, .prd-section h4 { margin: 18px 0 8px; line-height: 1.4; }
+.prd-section h2 { font-size: 16px; }
+.prd-section h3 { font-size: 14px; }
+.prd-section h4 { font-size: 13px; }
+.prd-section p, .prd-section li { font-size: 13px; line-height: 1.75; color: var(--text); }
+.prd-section code {
+  font-family: Consolas, monospace; font-size: 12px; background: #f2f3f5;
+  color: #d4380d; padding: 1px 5px; border-radius: 4px;
+}
+.prd-section pre {
+  background: #1f2329; color: #e5e7eb; border-radius: 8px;
+  padding: 10px 12px; overflow: auto;
+}
+.prd-section pre code { background: transparent; color: inherit; padding: 0; }
+.prd-section table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+.prd-section th, .prd-section td {
+  border: 1px solid var(--border); font-size: 12px; padding: 5px 8px; text-align: left;
+}
+.prd-section th { background: #fafbfc; }
+
+/* PRD 内原型引用链接（点击 → 画布聚焦） */
+.prd-ref {
+  display: inline-flex; align-items: center; gap: 4px;
+  color: var(--accent); background: var(--accent-soft);
+  border-radius: 6px; padding: 1px 8px; font-size: 12px;
+  cursor: pointer; text-decoration: none; border: none;
+}
+.prd-ref:hover { text-decoration: underline; }
+
+/* PRD 章节高亮（卡片 → PRD 定位） */
+.prd-section.section-flash { animation: sectionFlash 1.6s ease 2; }
+@keyframes sectionFlash {
+  0%, 100% { background: transparent; }
+  50% { background: var(--accent-soft); }
+}
+
+/* 双栏联动浮层提示 */
+#hlOverlay {
+  position: fixed; inset: 0; z-index: 99; pointer-events: none;
+}
+#hlOverlay.hidden { display: none; }
+
+/* 窄屏兜底：PRD 可收起 */
+@media (max-width: 1100px) { :root { --prd-w: 300px; --nav-w: 190px; } }
+
+/* ── PRD 直接编辑 ── */
+.hidden { display: none !important; }
+.prd-actions { display: flex; align-items: center; gap: 6px; }
+.prd-status {
+  flex: none; padding: 6px 12px; font-size: 12px; line-height: 1.5;
+  border-bottom: 1px solid var(--border);
+}
+.prd-status.info { background: #f2f3f5; color: var(--text2); }
+.prd-status.ok { background: #e8f7ee; color: #23a55a; }
+.prd-status.err { background: #feecea; color: var(--warn); }
+.prd-edit-sec {
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; margin-bottom: 10px; background: #fafbfc;
+}
+.prd-edit-head { display: flex; gap: 6px; margin-bottom: 6px; }
+.prd-edit-title {
+  width: 210px; flex: none; font-size: 13px; font-weight: 600; color: var(--text);
+  padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px;
+  background: #fff; font-family: inherit;
+}
+.prd-edit-level {
+  width: 58px; flex: none; font-size: 12px; color: var(--text2);
+  padding: 4px; border: 1px solid var(--border); border-radius: 6px; background: #fff;
+}
+.prd-edit-title:focus, .prd-edit-level:focus { outline: none; border-color: var(--accent); }
+.prd-edit-content {
+  height: 46vh; min-height: 64px; overflow: auto;
+  border: 1px dashed var(--border); border-radius: 6px;
+  padding: 8px 10px; background: #fff;
+  font-size: 13px; line-height: 1.75; color: var(--text);
+}
+/* 编辑区高度拖拽手柄（向下拖 = 加高） */
+.prd-edit-grip {
+  height: 12px; margin-top: 2px; cursor: row-resize;
+  display: flex; align-items: center; justify-content: center;
+}
+.prd-edit-grip::before {
+  content: ""; width: 46px; height: 4px; border-radius: 2px; background: #d5d9e0;
+}
+.prd-edit-grip:hover::before { background: var(--accent); }
+body.resizing-col { cursor: col-resize; user-select: none; }
+body.resizing-row { cursor: row-resize; user-select: none; }
+
+/* PRD 宽度拖拽条（中栏与右栏之间；分隔线由拖拽条自身绘制） */
+.prd-resizer {
+  flex: none; width: 6px; position: relative;
+  cursor: col-resize; background: transparent; z-index: 3;
+}
+.prd-resizer::after {
+  content: ""; position: absolute; left: 50%; top: 0; bottom: 0;
+  width: 1px; margin-left: -0.5px; background: var(--border);
+}
+.prd-resizer:hover, .prd-resizer.dragging { background: var(--accent-soft); }
+.prd-resizer:hover::after, .prd-resizer.dragging::after {
+  background: var(--accent); width: 2px; margin-left: -1px;
+}
+.prd-edit-content:focus { outline: none; border-style: solid; border-color: var(--accent); }
+.prd-edit-content p, .prd-edit-content li { font-size: 13px; line-height: 1.75; }
+.prd-edit-content h2, .prd-edit-content h3, .prd-edit-content h4 { margin: 10px 0 6px; }
+.prd-edit-content table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+.prd-edit-content th, .prd-edit-content td {
+  border: 1px solid var(--border); font-size: 12px; padding: 5px 8px; text-align: left;
+}
+
+/* ═══════════════ DeziBee Prototype Workspace 三栏骨架 ═══════════════
+   DeziBee Workbench Framework v2 — 框架文件由 DeziBee 维护，请勿修改 */
+:root {
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --border: #e3e6ea;
+  --text: #1f2329;
+  --text2: #646a73;
+  --hint: #8f959e;
+  --accent: #3370ff;
+  --accent-soft: #e8f0ff;
+  --warn: #d83931;
+  --nav-w: 220px;
+  --prd-w: 380px;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  background: var(--bg); color: var(--text); overflow: hidden;
+}
+
+/* 工作台面板细滚动条（iframe 内容的浮动滚动条由 workbench.js 注入） */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,.14); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,.26); }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+#app { display: flex; height: 100vh; }
+body.flow-fullscreen #nav,
+body.flow-fullscreen #prdResizer,
+body.flow-fullscreen #prd { display: none; }
+body.flow-fullscreen #canvasWrap { width: 100vw; }
+
+/* ── 左栏：导航 ── */
+#nav {
+  width: var(--nav-w); flex: none; display: flex; flex-direction: column;
+  background: var(--panel); border-right: 1px solid var(--border);
+}
+.nav-head {
+  padding: 12px 14px 8px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: baseline; gap: 6px;
+}
+.nav-title { font-size: 13px; font-weight: 700; }
+.nav-count { font-size: 11px; color: var(--hint); }
+.nav-tree { flex: 1; overflow: auto; padding: 6px 0; }
+.nav-group-label {
+  padding: 8px 14px 4px; font-size: 11px; color: var(--hint);
+  font-weight: 600; letter-spacing: .04em; user-select: none;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 14px; font-size: 13px; cursor: pointer; user-select: none;
+  border-left: 3px solid transparent; color: var(--text2);
+}
+.nav-item:hover { background: #f2f3f5; }
+.nav-item.active {
+  background: var(--accent-soft); border-left-color: var(--accent);
+  color: var(--accent); font-weight: 600;
+}
+.nav-item .dot {
+  width: 7px; height: 7px; border-radius: 50%; flex: none;
+  background: #c9cdd4;
+}
+.nav-item.active .dot, .nav-item.has-active .dot { background: var(--accent); }
+.nav-item .status-tag {
+  margin-left: auto; font-size: 10px; padding: 0 6px; border-radius: 8px;
+  background: #f2f3f5; color: var(--hint); flex: none;
+}
+.status-tag.confirmed { background: #e8f7ee; color: #23a55a; }
+.status-tag.deprecated { background: #feecea; color: var(--warn); }
+.canvas-toolbar button, .prd-head button {
+  border: 1px solid var(--border); background: #fff; color: var(--text2);
+  border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer;
+}
+.canvas-toolbar button:hover, .prd-head button:hover {
+  border-color: var(--accent); color: var(--accent);
+}
+
+/* ── 中栏：画布 ── */
+#canvasWrap { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.canvas-toolbar {
+  height: 40px; flex: none; display: flex; align-items: center; gap: 8px;
+  padding: 0 12px; background: var(--panel); border-bottom: 1px solid var(--border);
+}
+.canvas-page-name { font-size: 13px; font-weight: 600; }
+.flex-sp { flex: 1; }
+.zoom-label { font-size: 12px; color: var(--text2); min-width: 42px; text-align: center; }
+#viewport {
+  flex: 1; position: relative; overflow: hidden;
+  background:
+    linear-gradient(90deg, rgba(0,0,0,.035) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(rgba(0,0,0,.035) 1px, transparent 1px) 0 0 / 24px 24px,
+    #eef0f3;
+  cursor: grab;
+}
+#viewport.panning { cursor: grabbing; }
+/* 平移层（transform 只负责位移）+ 缩放层（zoom 重排渲染，缩放后文字/内容保持清晰不发糊） */
+#panner { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+#world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+#links {
+  /* 放在 #world 内、卡片下层：坐标即画布坐标，随世界一起平移缩放。
+     left/top 为 0，内部直接用画布坐标；负坐标内容靠 overflow:visible 承载。 */
+  position: absolute; left: 0; top: 0;
+  width: 40000px; height: 40000px;
+  overflow: visible; pointer-events: none; z-index: 1;
+}
+#links path { pointer-events: auto; cursor: pointer; }
+
+/* 原型卡片 */
+.proto-card {
+  position: absolute; background: #fff; border: 1px solid var(--border);
+  border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  display: flex; flex-direction: column; overflow: visible;
+  z-index: 2;
+}
+.proto-card .card-head {
+  display: flex; align-items: center; gap: 6px;
+  flex: none; height: 28px; box-sizing: border-box;
+  padding: 0 10px; border-bottom: 1px solid var(--border);
+  background: #fafbfc; border-radius: 8px 8px 0 0; user-select: none;
+}
+.proto-card .card-name { font-size: 12px; font-weight: 600; }
+.proto-card .card-type {
+  font-size: 10px; color: var(--hint); background: #f2f3f5;
+  border-radius: 8px; padding: 0 6px;
+}
+.proto-card .card-status { margin-left: auto; font-size: 10px; color: var(--hint); }
+.proto-card .card-body {
+  flex: 1; overflow: auto; border-radius: 0 0 8px 8px;
+}
+.proto-card .card-body > iframe {
+  width: 100%; height: 100%; border: 0; display: block; background: #fff;
+}
+.proto-card.selected { outline: 2px solid var(--accent); }
+.proto-card.link-highlight { outline: 2px dashed #ff9f0a; }
+.proto-card.flash { animation: flashBorder 1.2s ease 2; }
+@keyframes flashBorder {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(51,112,255,0); }
+  50% { box-shadow: 0 0 0 6px rgba(51,112,255,.25); }
+}
+
+/* ── 设备外壳（卡片可选 shell 字段；卡片 w/h 始终指屏幕内容区尺寸） ── */
+.proto-card .shell {
+  flex: 1; display: flex; flex-direction: column;
+  position: relative; min-height: 0; min-width: 0;
+}
+.shell .card-body.screen { border-radius: 0; }
+
+/* 手机壳：黑色圆角边框 + 顶部刘海 */
+.shell-phone {
+  background: linear-gradient(#2a2a2e, #17171a);
+  border-radius: 46px; padding: 12px;
+  box-shadow: inset 0 0 0 2px #43434a, 0 10px 28px rgba(0,0,0,.22);
+}
+.shell-phone::before {
+  content: ""; position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+  width: 88px; height: 24px; background: #17171a; border-radius: 14px;
+  box-shadow: inset 0 0 0 2px #34343a; z-index: 3;
+}
+.shell-phone .card-body.screen {
+  flex: 1; border-radius: 34px; overflow: hidden; background: #fff;
+}
+
+/* 平板壳：黑色窄边框 */
+.shell-tablet {
+  background: linear-gradient(#2a2a2e, #17171a);
+  border-radius: 30px; padding: 14px;
+  box-shadow: inset 0 0 0 2px #43434a, 0 10px 28px rgba(0,0,0,.2);
+}
+.shell-tablet .card-body.screen {
+  flex: 1; border-radius: 16px; overflow: hidden; background: #fff;
+}
+
+/* 浏览器壳：macOS 风格窗口 + 顶栏 + 地址栏 */
+.shell-browser {
+  background: #fff; border: 1px solid #d3d7dd; border-radius: 12px;
+  box-shadow: 0 10px 26px rgba(0,0,0,.14); overflow: hidden;
+}
+.shell-browser::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 34px;
+  background: linear-gradient(#f6f7f9, #ecedf0); border-bottom: 1px solid #dfe3e8;
+  z-index: 1;
+}
+.shell-browser::after {
+  content: ""; position: absolute; top: 8px; left: 60px; right: 14px; height: 19px;
+  background: #fff; border: 1px solid #dde1e6; border-radius: 10px; z-index: 1;
+}
+.shell-browser .dots {
+  position: absolute; top: 0; left: 0; height: 34px;
+  display: flex; align-items: center; gap: 6px; padding-left: 14px; z-index: 2;
+}
+.shell-browser .dots i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+.shell-browser .dots .d-r { background: #ff5f57; }
+.shell-browser .dots .d-y { background: #febc2e; }
+.shell-browser .dots .d-g { background: #28c840; }
+.shell-browser .card-body.screen { flex: 1; margin-top: 34px; background: #fff; }
+
+/* 连线 */
+.link-line { fill: none; stroke: #9aa3af; stroke-width: 1.6; }
+.link-line:hover, .link-line.hl { stroke: #ff9f0a; stroke-width: 2.2; }
+.link-arrow { fill: #9aa3af; }
+.link-arrow.hl { fill: #ff9f0a; }
+.link-label { font-size: 11px; fill: var(--text2); paint-order: stroke; stroke: #eef0f3; stroke-width: 4px; }
+.link-label.hl { fill: #ff9f0a; font-weight: 600; }
+
+/* 空画布提示 */
+.card-hint {
+  position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%);
+  color: var(--hint); font-size: 13px; background: rgba(255,255,255,.9);
+  border: 1px dashed var(--border); border-radius: 10px; padding: 14px 22px;
+  pointer-events: none; text-align: center; line-height: 1.7;
+}
+.card-hint.hidden { display: none; }
+
+</style>
+<!-- dezibee:styles:end -->
+</head>
+<body>
+<!-- ═══════════════════════════════════════════════════════════════
+     DeziBee 原型设计工作台（Prototype Workspace）
+     三栏固定骨架：画布导航 | 画布详情（原型页面 / 原型卡片）| 产品需求说明书（PRD）
+     页面/卡片/PRD 内容全部由 DeziBee(AI) 在 WORKBENCH_DATA 中定义，
+     框架只负责承载与联动。修改数据请阅读 Skill 中的 references/design-guide.md。
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="app">
+  <!-- ── 左栏：画布导航（= pages 页面树，由框架自动渲染） ── -->
+  <aside id="nav">
+    <div class="nav-head">
+      <span class="nav-title" id="navProjectTitle">画布导航</span>
+      <span class="nav-count" id="navPageCount"></span>
+    </div>
+    <div class="nav-tree" id="navTree"><!-- JS 渲染页面树 --></div>
+  </aside>
+
+  <!-- ── 中栏：画布详情（原型页面 / 原型卡片展示区） ── -->
+  <main id="canvasWrap">
+    <div class="canvas-toolbar">
+      <span id="canvasPageName" class="canvas-page-name"></span>
+      <span class="flex-sp"></span>
+      <button id="zoomOutBtn" title="缩小">−</button>
+      <span id="zoomLabel" class="zoom-label">100%</span>
+      <button id="zoomInBtn" title="放大">＋</button>
+      <button id="originBtn" title="画布回到原点">⌂ 原点</button>
+      <button id="fitAllBtn" title="适应当前页面全部内容">⤢ 全局</button>
+      <button id="focusBtn" title="聚焦当前选中的原型卡片">◎ 聚焦</button>
+      <button id="flowFullscreenBtn" title="隐藏画布目录和 PRD，进入全屏流程原型展示">⛶ 全屏原型</button>
+      <button id="exportBtn" class="hidden" title="导出原型">📦 导出</button>
+    </div>
+    <div id="viewport">
+      <div id="world"><!-- 卡片与连线由 JS 按 WORKBENCH_DATA 渲染 -->
+        <svg id="links" xmlns="http://www.w3.org/2000/svg"><!-- 关系连线层（随画布缩放平移） --></svg>
+      </div>
+    </div>
+    <div id="cardHint" class="card-hint hidden"></div>
+  </main>
+
+  <!-- 拖拽调整 PRD 宽度（双击复位） -->
+  <div id="prdResizer" class="prd-resizer" title="左右拖动调整「产品需求说明书」宽度；双击复位"></div>
+
+  <!-- ── 右栏：产品需求说明书（PRD / 需求说明 / 产品文档） ── -->
+  <aside id="prd">
+    <div class="prd-head">
+      <span class="prd-title">产品需求说明书</span>
+      <span class="prd-actions">
+        <button id="prdEditBtn" title="编辑产品需求说明书">✎ 编辑</button>
+        <button id="prdSaveBtn" class="hidden" title="另存为 HTML（Ctrl+S）">✔ 保存</button>
+        <button id="prdCancelBtn" class="hidden" title="放弃本次修改">✕ 取消</button>
+        <button id="prdTocBtn" class="prd-toc-toggle is-open" aria-label="收起目录" aria-expanded="true" title="收起目录">☰</button>
+      </span>
+    </div>
+    <div id="prdStatus" class="prd-status hidden"></div>
+    <nav id="prdToc" class="prd-toc"><!-- JS 渲染 PRD 目录 --></nav>
+    <article id="prdBody" class="prd-body"><!-- PRD 内容由 JS 渲染 --></article>
+  </aside>
+</div>
+
+<!-- 高亮联动浮层 -->
+<div id="hlOverlay" class="hidden"></div>
+
+<script id="workbench-data">
+/* ═══════════════════════════════════════════════════════════════
+   WORKBENCH_DATA —— DeziBee(AI) 唯一需要编辑的数据区。
+   结构说明见 Skill 的 references/design-guide.md。核心约定：
+   - 每个页面 page.id / 每个卡片 card.id / 每个 PRD 章节锚点 section.id
+     必须全局唯一；卡片.prdId ↔ 章节锚点 构成双向关联（唯一 ID，不做名称匹配）。
+   - 卡片内容 card.html 是真实 HTML/CSS/JS（禁止用图片模拟页面）。
+   ═══════════════════════════════════════════════════════════════ */
+const WORKBENCH_DATA = window.WORKBENCH_DATA = {
+  "project": {
+    "title": "未命名原型项目",
+    "version": "v0.1",
+    "updatedAt": ""
+  },
+  "pages": [
+    {
+      "id": "page-overview",
+      "name": "需求概述",
+      "group": "",
+      "prdId": "sec-overview",
+      "cards": [
+        {
+          "id": "card-overview",
+          "name": "需求概述",
+          "type": "overview",
+          "x": 120,
+          "y": 160,
+          "w": 720,
+          "h": 560,
+          "shell": "browser",
+          "status": "draft",
+          "prdId": "sec-overview",
+          "html": "\u003cstyle>.overview{font-family:system-ui;padding:40px;color:#172033;background:#fff;min-height:100%;box-sizing:border-box}.overview h1{margin:0 0 28px;font-size:30px}.overview dl{display:grid;grid-template-columns:120px 1fr;gap:16px 20px;margin:0}.overview dt{color:#667085}.overview dd{margin:0;font-weight:600}\u003c/style>\u003cdiv class='overview'>\u003ch1>需求名称\u003c/h1>\u003cdl>\u003cdt>版本信息\u003c/dt>\u003cdd>v0.1\u003c/dd>\u003cdt>更新时间\u003c/dt>\u003cdd>待补充\u003c/dd>\u003cdt>需求状态\u003c/dt>\u003cdd>草稿\u003c/dd>\u003cdt>需求负责人\u003c/dt>\u003cdd>待补充\u003c/dd>\u003c/dl>\u003c/div>"
+        }
+      ]
+    }
+  ],
+  "links": [],
+  "prd": {
+    "sections": [
+      {
+        "id": "sec-overview",
+        "title": "1. 本次需求概述",
+        "level": 2,
+        "html": "\u003ch3>1.1. 需求背景和目标\u003c/h3>\u003cp>说明本次为什么调整，以及希望解决的问题。\u003c/p>\u003ch3>1.2. 需求概述\u003c/h3>\u003cp>概括本次涉及的页面和主要变化。\u003c/p>\u003ch3>1.3. 相关流程\u003c/h3>\u003cp>如涉及多个页面流转，在这里用文字说明完整流程；不涉及时可删除本节。\u003c/p>"
+      }
+    ]
+  }
+};
+</script>
+<!-- dezibee:scripts:start -->
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+ * DeziBee Prototype Workspace 引擎
+ * DeziBee Workbench Framework v2 — 框架文件由 DeziBee 维护，请勿修改
+ * 职责（框架能力，业务无关）：
+ *   1. 渲染导航树（分组/页面/状态），页面切换
+ *   2. 无限画布：平移/缩放/原点/适应内容/聚焦卡片
+ *      缩放用 CSS zoom（内容按目标尺寸重排渲染，缩放后不发糊）
+ *   3. 原型卡片：按 WORKBENCH_DATA.pages[].cards 渲染（iframe 沙箱承载真实 HTML）
+ *      可选 shell 字段：phone 手机壳 / tablet 平板壳 / browser 浏览器壳（w/h 为屏幕内容区）
+ *   4. 卡片关系连线（SVG，来源/触发/条件 → 提示悬停）
+ *   5. 双向关联（唯一 ID）：选中卡片/切换页面 → PRD 定位高亮；PRD 引用 → 画布聚焦
+ * 数据全部来自 index.html 的 WORKBENCH_DATA；AI 只改数据，不改本文件。
+ * ═══════════════════════════════════════════════════════════════════ */
+'use strict';
+
+/* ── 工具 ── */
+const $ = (sel) => document.querySelector(sel);
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
+}
+
+/* ── 全局状态 ── */
+const D = window.WORKBENCH_DATA;
+const state = {
+  currentPageId: D.pages.length ? D.pages[0].id : null,
+  scale: 1,
+  tx: 0, ty: 0,          // world 平移
+  selectedCardId: null,
+  dragging: null,        // {cardId, dx, dy}
+  panning: null,         // {sx, sy, tx, ty}
+  prdEditing: false,     // PRD 直接编辑模式
+  flowFullscreen: false, // 全屏流程原型展示模式
+};
+
+/* 卡片索引：id → {card, page}（全页面共用一个索引，跳转/连线跨页可达）。
+   每次渲染前重建：AI 修改 WORKBENCH_DATA 后无需关心缓存。 */
+const cardIndex = new Map();
+
+function buildCardIndex() {
+  cardIndex.clear();
+  D.pages.forEach(p => (p.cards || []).forEach(c => cardIndex.set(c.id, { card: c, page: p })));
+}
+
+/* ═══════════════ 1. 导航树 ═══════════════ */
+
+function buildNavTree() {
+  const tree = $('#navTree');
+  tree.innerHTML = '';
+  // 页面顺序始终以 pages 数组为准；分组标签只负责展示，不重排页面。
+  let previousParts = [];
+  for (const p of D.pages) {
+    const path = (p.group || '').replace(/^\/+|\/+$/g, '');
+    const parts = path ? path.split('/') : [];
+    let shared = 0;
+    while (shared < parts.length && parts[shared] === previousParts[shared]) shared++;
+    for (let i = shared; i < parts.length; i++) {
+      tree.appendChild(el('div', 'nav-group-label', '  '.repeat(i) + parts[i]));
+    }
+    previousParts = parts;
+    const item = el('div', 'nav-item');
+    item.dataset.pageId = p.id;
+    item.appendChild(el('span', 'dot'));
+    item.appendChild(el('span', '', p.name || p.id));
+    const st = p.cards?.[0]?.status;
+    if (st && st !== 'draft') {
+      item.appendChild(el('span', 'status-tag ' + st, st));
+    }
+    if (p.id === state.currentPageId) item.classList.add('active');
+    item.addEventListener('click', () => switchPage(p.id));
+    tree.appendChild(item);
+  }
+  $('#navPageCount').textContent = D.pages.length + ' 页';
+}
+
+function switchPage(pageId, opts = {}) {
+  if (!cardIndexHasPage(pageId)) return;
+  state.currentPageId = pageId;
+  state.selectedCardId = null;
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.classList.toggle('active', n.dataset.pageId === pageId);
+  });
+  renderPage();
+  // 页面 → PRD 联动：右栏自动跳到该页对应章节（focusCard 聚焦卡片时自带章节定位，跳过）
+  if (!opts.skipPrd) syncPrdToPage(pageId);
+}
+
+/* 页面 → PRD 章节映射：page.prdId 优先，否则取该页第一张带 prdId 的卡片 */
+function syncPrdToPage(pageId) {
+  const page = D.pages.find(p => p.id === pageId);
+  if (!page) return;
+  const prdId = page.prdId || (page.cards || []).map(c => c.prdId).find(Boolean);
+  if (prdId) openPrdSection(prdId);
+}
+
+function cardIndexHasPage(pageId) { return D.pages.some(p => p.id === pageId); }
+
+/* ═══════════════ 2. 画布：平移/缩放/聚焦 ═══════════════ */
+
+/* 缩放实现：#panner(transform: translate 平移) > #world(zoom 缩放)。
+   CSS zoom 让 iframe 内容按目标尺寸重新布局渲染（不同于 transform: scale 的
+   位图缩放），缩小/放大后文字与内容依然清晰。zoom 兼容写法见 applyTransform。 */
+function ensurePanner() {
+  const world = $('#world');
+  if (!world || (world.parentElement && world.parentElement.id === 'panner')) return;
+  const pan = document.createElement('div');
+  pan.id = 'panner';
+  world.parentNode.insertBefore(pan, world);
+  pan.appendChild(world);
+}
+
+function applyTransform() {
+  const pan = $('#panner');
+  if (pan) pan.style.transform = `translate(${state.tx}px, ${state.ty}px)`;
+  const world = $('#world');
+  if ('zoom' in world.style) {
+    world.style.zoom = String(state.scale);
+  } else {
+    // 兜底（极旧内核）：退回 transform 缩放
+    world.style.transform = `scale(${state.scale})`;
+  }
+  $('#zoomLabel').textContent = Math.round(state.scale * 100) + '%';
+  drawLinks();
+}
+
+function zoomAt(factor, cx, cy) {
+  // 以视口点 (cx,cy) 为中心缩放
+  const ns = Math.min(4, Math.max(0.15, state.scale * factor));
+  const k = ns / state.scale;
+  state.tx = cx - (cx - state.tx) * k;
+  state.ty = cy - (cy - state.ty) * k;
+  state.scale = ns;
+  applyTransform();
+}
+
+function viewportCenter() {
+  const v = $('#viewport');
+  return { x: v.clientWidth / 2, y: v.clientHeight / 2 };
+}
+
+function fitAll() {
+  // 适应当前页面全部卡片（含外壳装饰）
+  const page = D.pages.find(p => p.id === state.currentPageId);
+  const cards = page?.cards || [];
+  if (!cards.length) { resetOrigin(); return; }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const c of cards) {
+    const o = cardOuterSize(c);
+    minX = Math.min(minX, c.x); minY = Math.min(minY, c.y);
+    maxX = Math.max(maxX, c.x + o.w); maxY = Math.max(maxY, c.y + o.h);
+  }
+  const v = $('#viewport');
+  const pad = 60;
+  const sx = v.clientWidth / (maxX - minX + pad * 2);
+  const sy = v.clientHeight / (maxY - minY + pad * 2);
+  state.scale = Math.min(1.5, Math.max(0.15, Math.min(sx, sy)));
+  state.tx = pad + (v.clientWidth - (maxX - minX) * state.scale) / 2 - minX * state.scale;
+  state.ty = pad + (v.clientHeight - (maxY - minY) * state.scale) / 2 - minY * state.scale;
+  applyTransform();
+}
+
+function resetOrigin() { state.scale = 1; state.tx = 0; state.ty = 0; applyTransform(); }
+
+function setFlowFullscreen(enabled) {
+  state.flowFullscreen = enabled;
+  document.body.classList.toggle('flow-fullscreen', enabled);
+  const btn = $('#flowFullscreenBtn');
+  btn.textContent = enabled ? '⛶ 退出全屏' : '⛶ 全屏原型';
+  btn.title = enabled ? '退出全屏流程原型展示（Esc）' : '隐藏画布目录和 PRD，进入全屏流程原型展示';
+  btn.setAttribute('aria-pressed', String(enabled));
+  requestAnimationFrame(() => fitAll());
+}
+
+function focusCard(cardId, opts = {}) {
+  // 聚焦卡片：切到所属页面（若需要）→ 居中 → 高亮闪烁 → PRD 跳到对应章节
+  const rec = cardIndex.get(cardId);
+  if (!rec) return;
+  if (rec.page.id !== state.currentPageId) switchPage(rec.page.id, { skipPrd: true });
+  state.selectedCardId = cardId;
+  const v = $('#viewport');
+  const c = rec.card;
+  const o = cardOuterSize(c);
+  const w = o.w, h = o.h;
+  state.scale = opts.scale || Math.min(1.2, Math.max(0.3,
+    Math.min((v.clientWidth - 120) / w, (v.clientHeight - 120) / h)));
+  state.tx = v.clientWidth / 2 - (c.x + w / 2) * state.scale;
+  state.ty = v.clientHeight / 2 - (c.y + h / 2) * state.scale;
+  applyTransform();
+  markSelected();
+  const node = $(`#world [data-card-id="${CSS.escape(cardId)}"]`);
+  if (node) {
+    node.classList.remove('flash'); void node.offsetWidth; node.classList.add('flash');
+  }
+  openPrdForCard(cardId);
+}
+
+function markSelected() {
+  document.querySelectorAll('.proto-card').forEach(n =>
+    n.classList.toggle('selected', n.dataset.cardId === state.selectedCardId));
+}
+
+/* 视口交互：空白拖拽平移；滚轮缩放；快捷键 */
+function bindViewport() {
+  const vp = $('#viewport');
+  vp.addEventListener('mousedown', (e) => {
+    if (e.target.closest('.proto-card')) return;
+    state.panning = { sx: e.clientX, sy: e.clientY, tx: state.tx, ty: state.ty };
+    vp.classList.add('panning');
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (state.panning) {
+      state.tx = state.panning.tx + (e.clientX - state.panning.sx);
+      state.ty = state.panning.ty + (e.clientY - state.panning.sy);
+      applyTransform();
+    } else if (state.dragging) {
+      const d = state.dragging;
+      const rec = cardIndex.get(d.cardId);
+      if (!rec) return;
+      rec.card.x = Math.round(d.cx + (e.clientX - d.sx) / state.scale);
+      rec.card.y = Math.round(d.cy + (e.clientY - d.sy) / state.scale);
+      const node = $(`#world [data-card-id="${CSS.escape(d.cardId)}"]`);
+      if (node) { node.style.left = rec.card.x + 'px'; node.style.top = rec.card.y + 'px'; }
+      drawLinks();
+    }
+  });
+  window.addEventListener('mouseup', () => {
+    state.panning = null; state.dragging = null;
+    vp.classList.remove('panning');
+  });
+  vp.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = vp.getBoundingClientRect();
+    zoomAt(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX - rect.left, e.clientY - rect.top);
+  }, { passive: false });
+  vp.addEventListener('dblclick', (e) => {
+    if (e.target.closest('.proto-card')) return;
+    fitAll();
+  });
+  window.addEventListener('keydown', (e) => {
+    // 编辑 PRD 时：Ctrl+S 保存；其余画布快捷键一律让位给文本输入
+    if (state.prdEditing && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault(); savePrd(); return;
+    }
+    if (e.target.matches('input, textarea, select') || e.target.isContentEditable) return;
+    if (state.prdEditing) return;
+    if (e.key === 'Escape' && state.flowFullscreen) { setFlowFullscreen(false); return; }
+    if (e.key === '0' && !e.ctrlKey && !e.metaKey) resetOrigin();
+    if (e.key === '1' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); fitAll(); }
+    if (e.key === 'Escape') { state.selectedCardId = null; markSelected(); }
+  });
+}
+
+/* ═══════════════ 3. 原型卡片渲染 ═══════════════ */
+
+/* 设备外壳：系统组件，AI 只写 shell 字段；卡片 w/h 始终指屏幕内容区尺寸 */
+const SHELLS = {
+  phone:   { pad: 12, chromeH: 0 },
+  tablet:  { pad: 14, chromeH: 0 },
+  browser: { pad: 0,  chromeH: 34 },
+};
+
+/* 标题栏固定高度（与 CSS .card-head 保持一致），w/h 始终指屏幕内容区，
+   外壳与标题栏都画在屏幕区之外，不挤占原型空间（+2 为卡片自身 1px 边框的补偿） */
+const CARD_HEAD_H = 28;
+
+function cardShell(c) {
+  return c.shell && SHELLS[c.shell] ? c.shell : '';
+}
+
+/* 卡片外围尺寸（标题栏 + 外壳装饰 + 边框补偿），供画布包围盒/聚焦/连线计算 */
+function cardOuterSize(c) {
+  const shell = cardShell(c);
+  const conf = shell ? SHELLS[shell] : null;
+  const pad = conf ? conf.pad * 2 : 0;
+  return {
+    w: (c.w || 360) + pad + 2,
+    h: (c.h || 560) + CARD_HEAD_H + pad + (conf ? conf.chromeH : 0) + 2,
+  };
+}
+
+/* iframe 注入：隐藏原生滚动条（不占布局空间），并提供 3px 浮动滚动指示条——
+   滚动时浮现于内容之上，停止约 0.8 秒后自动淡出（移动端 overlay 风格） */
+const FRAME_EXTRAS =
+  '<style>::-webkit-scrollbar{width:0;height:0}html{scrollbar-width:none}</style>' +
+  '<script>(function(){var bar=null,timer=0;function refresh(){' +
+  'var de=document.documentElement,vh=de.clientHeight,sh=de.scrollHeight;' +
+  'var st=de.scrollTop||document.body.scrollTop||0;' +
+  'if(sh<=vh+1){if(bar)bar.style.opacity="0";return;}' +
+  'if(!bar){bar=document.createElement("div");' +
+  'bar.style.cssText="position:fixed;top:0;right:2px;width:3px;border-radius:2px;' +
+  'background:rgba(0,0,0,.22);z-index:2147483647;pointer-events:none;opacity:0;' +
+  'transition:opacity .3s";document.body.appendChild(bar);}' +
+  'var h=Math.max(28,vh*vh/sh),y=st/(sh-vh)*(vh-h);' +
+  'bar.style.top=y+"px";bar.style.height=h+"px";bar.style.opacity="1";' +
+  'clearTimeout(timer);timer=setTimeout(function(){bar.style.opacity="0"},800);}' +
+  'addEventListener("scroll",refresh);addEventListener("resize",refresh);' +
+  'addEventListener("load",function(){setTimeout(refresh,60)});})();<\/script>';
+
+function renderPage() {
+  buildCardIndex();
+  const world = $('#world');
+  // 只清卡片，保留连线层 SVG（它在 world 内、随画布变换）
+  world.querySelectorAll('.proto-card').forEach(n => n.remove());
+  const page = D.pages.find(p => p.id === state.currentPageId);
+  $('#canvasPageName').textContent = page ? `画布详情 · ${page.name || page.id}` : '画布详情';
+  const cards = page?.cards || [];
+
+  if (!cards.length) {
+    const hint = $('#cardHint');
+    hint.classList.remove('hidden');
+    hint.textContent = '本页面还没有原型卡片 — 在 DeziBee 对话里让 AI 创建';
+  } else {
+    $('#cardHint').classList.add('hidden');
+  }
+
+  for (const c of cards) {
+    const node = el('div', 'proto-card');
+    node.dataset.cardId = c.id;
+    node.style.left = (c.x || 0) + 'px';
+    node.style.top = (c.y || 0) + 'px';
+
+    const shell = cardShell(c);
+    const outer = cardOuterSize(c);
+    node.style.width = outer.w + 'px';
+    node.style.height = outer.h + 'px';
+
+    const head = el('div', 'card-head');
+    head.appendChild(el('span', 'card-name', c.name || c.id));
+    if (c.type) head.appendChild(el('span', 'card-type', c.type));
+    if (c.status) head.appendChild(el('span', 'card-status', c.status));
+    node.appendChild(head);
+
+    let body;
+    if (shell) {
+      const shellEl = el('div', 'shell shell-' + shell);
+      if (shell === 'browser') {
+        const dots = document.createElement('span');
+        dots.className = 'dots';
+        dots.innerHTML = '<i class="d-r"></i><i class="d-y"></i><i class="d-g"></i>';
+        shellEl.appendChild(dots);
+      }
+      body = el('div', 'card-body screen');
+      shellEl.appendChild(body);
+      node.appendChild(shellEl);
+    } else {
+      body = el('div', 'card-body');
+      node.appendChild(body);
+    }
+
+    // 真实 HTML 用 iframe 沙箱承载：样式隔离 + 交互真实可用（禁止图片模拟页面）
+    const frame = document.createElement('iframe');
+    frame.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals allow-popups');
+    body.appendChild(frame);
+
+    // 卡片交互：单击选中即联动 PRD；头部拖拽移动
+    node.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+      state.selectedCardId = c.id;
+      markSelected();
+      openPrdForCard(c.id);   // 选中即联动：PRD 跳到对应章节（无关联章节时为空操作）
+      if (e.target.closest('.card-head')) {
+        state.dragging = {
+          cardId: c.id, sx: e.clientX, sy: e.clientY,
+          cx: c.x, cy: c.y,
+        };
+      }
+    });
+
+    // srcdoc 放最后写入：DOM 结构就绪后再加载，避免壳样式抖动
+    frame.srcdoc =
+      '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+      '<style>html,body{margin:0;padding:0;overflow-x:hidden}</style>' +
+      FRAME_EXTRAS +
+      '</head><body>' + (c.html || '') + '</body></html>';
+
+    world.appendChild(node);
+  }
+  drawLinks();
+}
+
+/* ═══════════════ 4. 关系连线（SVG） ═══════════════ */
+
+function cardAnchor(cardId) {
+  const rec = cardIndex.get(cardId);
+  if (!rec) return null;
+  const c = rec.card;
+  const o = cardOuterSize(c);
+  return {
+    cx: c.x + o.w / 2,
+    cy: c.y + o.h / 2,
+    onCurrentPage: rec.page.id === state.currentPageId,
+    node: $(`#world [data-card-id="${CSS.escape(cardId)}"]`),
+  };
+}
+
+function drawLinks() {
+  const svg = $('#links');
+  svg.innerHTML = '';
+  const page = D.pages.find(p => p.id === state.currentPageId);
+  if (!page) return;
+  const pageCardIds = new Set((page.cards || []).map(c => c.id));
+  const world = $('#world');
+
+  for (const lnk of D.links || []) {
+    // 连线只画两端都在当前页面的（跨页关系在 PRD 里表达）
+    if (!pageCardIds.has(lnk.from) || !pageCardIds.has(lnk.to)) continue;
+    const a = cardAnchor(lnk.from), b = cardAnchor(lnk.to);
+    if (!a || !b || !a.node || !b.node) continue;
+
+    const x1 = a.cx, y1 = a.cy, x2 = b.cx, y2 = b.cy;
+    const dx = x2 - x1, dy = y2 - y1;
+    const len = Math.max(1, Math.hypot(dx, dy));
+    const ux = dx / len, uy = dy / len;
+    // 从卡片边缘起止
+    const aw = (parseFloat(a.node.style.width) || 360) / 2;
+    const ah = (parseFloat(a.node.style.height) || 560) / 2;
+    const bw = (parseFloat(b.node.style.width) || 360) / 2;
+    const bh = (parseFloat(b.node.style.height) || 560) / 2;
+    const sx = x1 + ux * Math.min(Math.abs(aw / (ux || 1e-6)), Math.abs(ah / (uy || 1e-6))) * 1;
+    const sy = y1 + uy * Math.min(Math.abs(ah / (uy || 1e-6)), Math.abs(aw / (ux || 1e-6))) * 1;
+    const ex = x2 - ux * Math.min(Math.abs(bw / (ux || 1e-6)), Math.abs(bh / (uy || 1e-6))) * 1;
+    const ey = y2 - uy * Math.min(Math.abs(bh / (uy || 1e-6)), Math.abs(bw / (ux || 1e-6))) * 1;
+
+    // 贝塞尔曲线
+    const mx = (sx + ex) / 2 + (dy / len) * 30;
+    const my = (sy + ey) / 2 - (dx / len) * 30;
+    const path = document.createElementNS(SVG_NS, 'path');
+    path.setAttribute('d', `M ${sx} ${sy} Q ${mx} ${my} ${ex} ${ey}`);
+    path.setAttribute('class', 'link-line');
+    path.dataset.linkId = lnk.id || '';
+
+    // 箭头
+    const ang = Math.atan2(ey - my, ex - mx);
+    const arrow = document.createElementNS(SVG_NS, 'polygon');
+    const ax = ex, ay = ey, as = 7;
+    arrow.setAttribute('points',
+      `${ax},${ay} ${ax - as * Math.cos(ang - 0.45)},${ay - as * Math.sin(ang - 0.45)} ` +
+      `${ax - as * Math.cos(ang + 0.45)},${ay - as * Math.sin(ang + 0.45)}`);
+    arrow.setAttribute('class', 'link-arrow');
+
+    // 标签：触发（+条件）
+    const label = document.createElementNS(SVG_NS, 'text');
+    label.setAttribute('x', mx); label.setAttribute('y', my - 6);
+    label.setAttribute('text-anchor', 'middle');
+    label.setAttribute('class', 'link-label');
+    label.textContent = lnk.trigger || lnk.note || '';
+
+    svg.appendChild(path); svg.appendChild(arrow); svg.appendChild(label);
+
+    // 悬停显示完整信息；点击 → 聚焦目标卡片并联动 PRD
+    const tip = [lnk.trigger, lnk.condition, lnk.note].filter(Boolean).join('　|　');
+    if (tip) {
+      path.addEventListener('mouseenter', () => { label.textContent = tip; path.classList.add('hl'); arrow.classList.add('hl'); label.classList.add('hl'); });
+      path.addEventListener('mouseleave', () => { label.textContent = lnk.trigger || lnk.note || ''; path.classList.remove('hl'); arrow.classList.remove('hl'); label.classList.remove('hl'); });
+    }
+    path.addEventListener('click', () => focusCard(lnk.to));
+  }
+}
+
+/* ═══════════════ 5. PRD 渲染 + 双向关联 ═══════════════ */
+
+function renderPrd() {
+  const body = $('#prdBody');
+  const toc = $('#prdToc');
+  body.innerHTML = ''; toc.innerHTML = '';
+  const sections = D.prd?.sections || [];
+
+  if (state.prdEditing) { renderPrdEditor(body, toc, sections); return; }
+
+  for (const sec of sections) {
+    // 目录项
+    const t = el('div', `toc-item lvl${sec.level || 2}`, sec.title || sec.id);
+    t.dataset.secId = sec.id;
+    t.addEventListener('click', () => openPrdSection(sec.id));
+    toc.appendChild(t);
+
+    // 章节
+    const wrap = el('section', `prd-section`);
+    wrap.id = 'sec-' + sec.id;
+    wrap.dataset.secId = sec.id;
+    const h = el('h' + (sec.level || 2), '', sec.title || sec.id);
+    wrap.appendChild(h);
+    const content = document.createElement('div');
+    content.innerHTML = sec.html || '';
+    // 把 <a data-prd-ref="card-xxx"> 或 <span class="prd-ref" data-card="..."> 转成可点击引用
+    content.querySelectorAll('[data-card-ref]').forEach(refEl => {
+      refEl.classList.add('prd-ref');
+      refEl.addEventListener('click', () => focusCard(refEl.dataset.cardRef));
+    });
+    wrap.appendChild(content);
+    body.appendChild(wrap);
+  }
+}
+
+/* 卡片 → PRD：定位对应章节并高亮（唯一 ID：card.prdId ↔ section.id） */
+function openPrdForCard(cardId) {
+  const rec = cardIndex.get(cardId);
+  if (!rec) return;
+  const prdId = rec.card.prdId;
+  if (!prdId) return;
+  openPrdSection(prdId, { fromCard: cardId });
+}
+
+function openPrdSection(secId, opts = {}) {
+  if (state.prdEditing) return;   // 编辑 PRD 时不抢滚动位置
+  const node = document.getElementById('sec-' + CSS.escape(secId));
+  if (!node) return;
+  node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  node.classList.remove('section-flash'); void node.offsetWidth;
+  node.classList.add('section-flash');
+  // TOC 高亮
+  document.querySelectorAll('.toc-item').forEach(t =>
+    t.classList.toggle('active', t.dataset.secId === secId));
+  // 反向：来源卡片闪烁
+  if (opts.fromCard) {
+    const n = $(`#world [data-card-id="${CSS.escape(opts.fromCard)}"]`);
+    if (n) { n.classList.remove('flash'); void n.offsetWidth; n.classList.add('flash'); }
+  }
+}
+
+/* 独立 Skill 的 PRD 在浏览器编辑，保存为新的自包含 HTML。 */
+
+/* 布局偏好（PRD 宽度 / 编辑区高度）本地记忆；隐私模式等取不到 localStorage 时静默降级 */
+function saveLayout(key, val) {
+  try {
+    if (val == null) localStorage.removeItem('dezibee.' + key);
+    else localStorage.setItem('dezibee.' + key, String(val));
+  } catch (e) { /* 忽略 */ }
+}
+
+function loadLayout(key) {
+  try {
+    const v = localStorage.getItem('dezibee.' + key);
+    return v == null ? null : Number(v);
+  } catch (e) { return null; }
+}
+
+function canEditPrd() { return true; }
+
+function setPrdStatus(msg, kind) {
+  const n = $('#prdStatus');
+  if (!msg) { n.textContent = ''; n.className = 'prd-status hidden'; return; }
+  n.textContent = msg;
+  n.className = 'prd-status ' + (kind || 'info');
+}
+
+function setPrdButtons(editing) {
+  $('#prdEditBtn').classList.toggle('hidden', editing);
+  $('#prdSaveBtn').classList.toggle('hidden', !editing);
+  $('#prdCancelBtn').classList.toggle('hidden', !editing);
+  $('#prdTocBtn').classList.toggle('hidden', editing);
+  $('#prdToc').classList.toggle('hidden', editing);
+}
+
+function enterPrdEdit() {
+  state.prdEditing = true;
+  setPrdButtons(true);
+  renderPrd();
+  setPrdStatus('', '');
+}
+
+function cancelPrdEdit() {
+  state.prdEditing = false;
+  setPrdButtons(false);
+  renderPrd();
+  setPrdStatus('', '');
+}
+
+/* 编辑态渲染：标题输入 + 层级选择 + 富文本正文（WYSIWYG） */
+
+function renderPrdEditor(body, toc, sections) {
+  toc.innerHTML = '<div class="toc-item lvl2 active">编辑中…</div>';
+  if (!sections.length) {
+    body.appendChild(el('p', '', '当前没有 PRD 章节 — 可在 DeziBee 对话里让 AI 先创建。'));
+    return;
+  }
+  sections.forEach((sec, idx) => {
+    const wrap = el('section', 'prd-edit-sec');
+    wrap.dataset.idx = String(idx);
+    wrap.dataset.secId = sec.id || '';
+
+    const head = el('div', 'prd-edit-head');
+    const title = document.createElement('input');
+    title.className = 'prd-edit-title';
+    title.value = sec.title || sec.id || '';
+    title.placeholder = '章节标题';
+    head.appendChild(title);
+    const level = document.createElement('select');
+    level.className = 'prd-edit-level';
+    for (const l of [2, 3, 4]) {
+      const o = document.createElement('option');
+      o.value = String(l); o.textContent = 'H' + l;
+      if ((sec.level || 2) === l) o.selected = true;
+      level.appendChild(o);
+    }
+    head.appendChild(level);
+    wrap.appendChild(head);
+
+    const content = document.createElement('div');
+    content.className = 'prd-edit-content';
+    content.contentEditable = 'true';
+    content.innerHTML = sec.html || '';
+    // 恢复上次拖动的高度（默认 46vh 由 CSS 给）
+    const savedH = loadLayout('prdEditH');
+    if (savedH && savedH >= 64) content.style.height = savedH + 'px';
+    wrap.appendChild(content);
+
+    // 高度拖拽手柄：向下拖加高编辑区
+    const grip = el('div', 'prd-edit-grip');
+    grip.title = '上下拖动调整编辑区高度';
+    grip.addEventListener('pointerdown', (e) => startEditResize(e, content));
+    wrap.appendChild(grip);
+
+    body.appendChild(wrap);
+  });
+}
+
+/* 收集编辑结果：id 保持原值 → 卡片 prdId 关联不断 */
+function collectPrdEdits() {
+  const orig = D.prd?.sections || [];
+  const out = [];
+  document.querySelectorAll('#prdBody .prd-edit-sec').forEach((wrap) => {
+    const sec = orig[Number(wrap.dataset.idx)] || {};
+    out.push({
+      ...sec,
+      id: sec.id,
+      title: wrap.querySelector('.prd-edit-title').value.trim() || sec.id,
+      level: Number(wrap.querySelector('.prd-edit-level').value) || 2,
+      html: wrap.querySelector('.prd-edit-content').innerHTML,
+    });
+  });
+  return out;
+}
+
+async function savePrd() {
+  if (!state.prdEditing || state.portableBusy) return;
+  state.portableBusy = true;
+  const next = JSON.parse(JSON.stringify(D));
+  next.prd = Object.assign({}, next.prd || {}, { sections: collectPrdEdits() });
+  try {
+    const filename = await downloadWorkbench(next, '-updated');
+    D.prd = next.prd;
+    state.prdEditing = false;
+    setPrdButtons(false);
+    renderPrd();
+    setPrdStatus('已保存 ' + filename, 'ok');
+  } catch (err) {
+    if (err?.name === 'AbortError') return;
+    setPrdStatus('保存失败：' + err.message, 'err');
+  } finally {
+    state.portableBusy = false;
+  }
+}
+
+function startDrag(e, onMove, onEnd, bodyClass) {
+  const el = e.currentTarget;
+  const startX = e.clientX, startY = e.clientY;
+  try { el.setPointerCapture(e.pointerId); } catch (err) { /* 忽略 */ }
+  document.body.classList.add(bodyClass);
+
+  const move = (ev) => onMove(ev, { startX, startY });
+  const end = () => {
+    el.removeEventListener('pointermove', move);
+    el.removeEventListener('pointerup', end);
+    el.removeEventListener('pointercancel', end);
+    window.removeEventListener('pointerup', end);
+    window.removeEventListener('mouseup', end);
+    window.removeEventListener('blur', end);
+    document.body.classList.remove(bodyClass);
+    el.classList.remove('dragging');
+    if (onEnd) onEnd();
+  };
+  el.addEventListener('pointermove', move);
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+  // 兜底：即使指针捕获不可用，松手/失焦也一定结束拖拽
+  window.addEventListener('pointerup', end);
+  window.addEventListener('mouseup', end);
+  window.addEventListener('blur', end);
+  el.classList.add('dragging');
+}
+
+/* 编辑区高度：拖动向下加高，上限 90vh，高度被记住 */
+function startEditResize(e, content) {
+  e.preventDefault();
+  const startH = content.getBoundingClientRect().height;
+  startDrag(e,
+    (ev, { startY }) => {
+      const h = Math.max(64, Math.min(window.innerHeight * 0.9, startH + (ev.clientY - startY)));
+      content.style.height = h + 'px';
+    },
+    () => saveLayout('prdEditH', Math.round(parseFloat(content.style.height))),
+    'resizing-row');
+}
+
+/* PRD 窗格宽度：拖拽左右调整，双击复位；宽度被记住 */
+function bindPrdResizer() {
+  const rz = $('#prdResizer');
+  const prd = $('#prd');
+  if (!rz || !prd) return;
+  const clamp = (w) => Math.max(260, Math.min(window.innerWidth - 460, w));
+
+  const saved = loadLayout('prdW');
+  if (saved && saved >= 260) prd.style.width = clamp(saved) + 'px';
+
+  rz.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    startDrag(e,
+      (ev) => { prd.style.width = clamp(window.innerWidth - ev.clientX) + 'px'; },
+      () => saveLayout('prdW', Math.round(parseFloat(prd.style.width))),
+      'resizing-col');
+  });
+
+  rz.addEventListener('dblclick', () => { prd.style.width = ''; saveLayout('prdW', null); });
+
+  window.addEventListener('resize', () => {
+    if (prd.style.width) prd.style.width = clamp(parseFloat(prd.style.width)) + 'px';
+  });
+}
+
+/* 打包当前数据并另存为；未保存的编辑合并到同一次保存。 */
+async function exportSingleFile() {
+  if (state.portableBusy) return;
+  state.portableBusy = true;
+  const next = JSON.parse(JSON.stringify(D));
+  if (state.prdEditing) next.prd = Object.assign({}, next.prd || {}, { sections: collectPrdEdits() });
+  try {
+    const filename = await downloadWorkbench(next, '');
+    if (state.prdEditing) {
+      D.prd = next.prd;
+      state.prdEditing = false;
+      setPrdButtons(false);
+      renderPrd();
+    }
+    setPrdStatus('已保存 ' + filename, 'ok');
+  } catch (err) {
+    if (err?.name === 'AbortError') return;
+    setPrdStatus('导出失败：' + err.message, 'err');
+  } finally {
+    state.portableBusy = false;
+  }
+}
+
+// Snapshot the pristine shell before init renders cards and the PRD editor.
+let portableSource = '';
+document.addEventListener('DOMContentLoaded', () => {
+  portableSource = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+});
+
+async function portableReplace(text, pattern, replace) {
+  const matches = [...text.matchAll(pattern)];
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const match = matches[i];
+    text = text.slice(0, match.index) + await replace(match) + text.slice(match.index + match[0].length);
+  }
+  return text;
+}
+
+async function buildPortableHtml(data) {
+  if (!portableSource) throw new Error('工作台尚未加载完成，请稍后重试');
+  const doc = new DOMParser().parseFromString(portableSource, 'text/html');
+  const dataScript = doc.getElementById('workbench-data');
+  if (!dataScript) throw new Error('模板缺少 workbench-data 数据入口，请更新 Skill 模板');
+  if (doc.querySelector('script[src],link[rel="stylesheet"]')) {
+    throw new Error('模板仍引用外部脚本或样式，请使用新版自包含模板，或让 Agent 运行 export 命令');
+  }
+  const next = JSON.parse(JSON.stringify(data));
+  const cache = new Map();
+  async function embed(ref) {
+    ref = ref.trim();
+    if (!ref || /^(?:data:|#)/i.test(ref)) return ref;
+    if (location.protocol === 'file:') throw new Error('本地文件素材尚未内联：' + ref + '；请让 Agent 运行 export 命令后再打开导出文件');
+    const url = new URL(ref, location.href);
+    if (!/^https?:$/.test(url.protocol) || url.origin !== location.origin) throw new Error('无法内联外部素材：' + ref);
+    if (!cache.has(url.href)) cache.set(url.href, (async () => {
+      const response = await fetch(url.href, { credentials: 'same-origin' });
+      if (!response.ok) throw new Error('素材读取失败：' + ref + '（HTTP ' + response.status + '）');
+      const blob = await response.blob();
+      return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error('素材内联失败：' + ref));
+        reader.readAsDataURL(blob);
+      });
+    })());
+    return cache.get(url.href);
+  }
+  async function css(text) {
+    if (/@import\b/i.test(text)) throw new Error('仍有未内联的 CSS 导入，请让 Agent 运行 export 命令');
+    return portableReplace(text, /(?<![\w-])url\(\s*(["']?)([^"')]+)\1\s*\)/gi,
+      async match => 'url("' + await embed(match[2]) + '")');
+  }
+  async function resources(owner) {
+    if (owner.querySelector('script[src],link[rel="stylesheet"]')) throw new Error('原型含外部脚本或样式，请先由 Agent 内联');
+    for (const element of owner.querySelectorAll('[src],[poster],[srcset],object[data],image[href],use[href]')) {
+      if (element.hasAttribute('srcset')) throw new Error('原型含 srcset 素材，请由 Agent 改为内联 src 后重试');
+      for (const attr of ['src', 'poster', 'data', 'href']) {
+        if (element.hasAttribute(attr)) element.setAttribute(attr, await embed(element.getAttribute(attr)));
+      }
+    }
+    for (const style of owner.querySelectorAll('style')) style.textContent = await css(style.textContent);
+    for (const styled of owner.querySelectorAll('[style]')) styled.setAttribute('style', await css(styled.getAttribute('style')));
+  }
+  for (const item of [...(next.pages || []).flatMap(page => page.cards || []), ...(next.prd?.sections || [])]) {
+    const content = new DOMParser().parseFromString('<!DOCTYPE html><html><head></head><body>' + (item.html || '') + '</body></html>', 'text/html');
+    await resources(content);
+    item.html = content.head.innerHTML + content.body.innerHTML;
+  }
+  await resources(doc);
+  dataScript.textContent = 'const WORKBENCH_DATA = window.WORKBENCH_DATA = ' + JSON.stringify(next, null, 2).replace(/</g, '\\u003c') + ';';
+  if (next.project?.title) doc.title = next.project.title;
+  return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+}
+
+async function downloadWorkbench(data, suffix = '') {
+  if (typeof window.showSaveFilePicker !== 'function') {
+    throw new Error('当前浏览器不支持选择保存位置，请使用 Chrome 或 Edge 打开工作台');
+  }
+  const title = String(data.project?.title || 'prototype').replace(/[<>:"/\\|?*\x00-\x1f]/g, '-').replace(/\.+$/g, '').trim() || 'prototype';
+  const suggestedName = title + suffix + '-' + timestampSuffix() + '.html';
+  // 在用户点击后的首次异步操作中打开系统窗口，保留用户激活状态。
+  const handle = await window.showSaveFilePicker({
+    suggestedName,
+    types: [{ description: 'HTML 文件', accept: { 'text/html': ['.html'] } }],
+    excludeAcceptAllOption: true,
+  });
+  const html = await buildPortableHtml(data);
+  const writable = await handle.createWritable();
+  try {
+    await writable.write(new Blob([html], { type: 'text/html;charset=utf-8' }));
+    await writable.close();
+  } catch (err) {
+    try { await writable.abort(); } catch (_) { /* 保留原始保存错误 */ }
+    throw err;
+  }
+  const filename = handle.name;
+  return filename;
+}
+
+function init() {
+  ensurePanner();
+  // 三栏固定称呼：画布导航 | 画布详情 | 产品需求说明书（与 GUIDE 术语一致，覆盖旧模板文案）
+  $('#navProjectTitle').textContent = '画布导航';
+  if (D.project?.title) document.title = D.project.title;
+  const prdTitle = document.querySelector('.prd-title');
+  if (prdTitle) prdTitle.textContent = '产品需求说明书';
+  buildNavTree();
+  renderPrd();
+  renderPage();
+  bindViewport();
+  bindPrdResizer();
+  syncPrdToPage(state.currentPageId);   // 首屏 PRD 跟随初始页面
+  // 首屏自动适应内容
+  requestAnimationFrame(() => fitAll());
+
+  $('#zoomInBtn').addEventListener('click', () => { const c = viewportCenter(); zoomAt(1.2, c.x, c.y); });
+  $('#zoomOutBtn').addEventListener('click', () => { const c = viewportCenter(); zoomAt(1 / 1.2, c.x, c.y); });
+  $('#fitAllBtn').addEventListener('click', fitAll);
+  $('#originBtn').addEventListener('click', resetOrigin);
+  $('#focusBtn').addEventListener('click', () => {
+    if (state.selectedCardId) focusCard(state.selectedCardId);
+  });
+  $('#flowFullscreenBtn').addEventListener('click', () => setFlowFullscreen(!state.flowFullscreen));
+  $('#prdTocBtn').addEventListener('click', () => {
+    const toc = $('#prdToc');
+    const btn = $('#prdTocBtn');
+    const open = toc.classList.toggle('hidden') === false;
+    btn.classList.toggle('is-open', open);
+    btn.classList.toggle('is-closed', !open);
+    btn.setAttribute('aria-expanded', String(open));
+    btn.setAttribute('aria-label', open ? '收起目录' : '展开目录');
+    btn.title = open ? '收起目录' : '展开目录';
+  });
+
+  $('#prdEditBtn').classList.remove('hidden');
+  $('#prdEditBtn').title = '编辑产品需求说明书';
+  $('#prdSaveBtn').title = '下载包含修改内容的 HTML（Ctrl+S）';
+  $('#prdEditBtn').addEventListener('click', enterPrdEdit);
+  $('#prdSaveBtn').addEventListener('click', savePrd);
+  $('#prdCancelBtn').addEventListener('click', cancelPrdEdit);
+  $('#exportBtn').classList.remove('hidden');
+  $('#exportBtn').addEventListener('click', exportSingleFile);
+}
+
+document.addEventListener('DOMContentLoaded', init);
+
+</script>
+<!-- dezibee:scripts:end -->
+</body>
+</html>
