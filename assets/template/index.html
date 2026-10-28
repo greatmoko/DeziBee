@@ -41,6 +41,7 @@
   cursor: pointer; border-left: 3px solid transparent;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.toc-item.lvl1 { padding-left: 8px; font-weight: 700; color: var(--text); }
 .toc-item.lvl2 { padding-left: 14px; font-weight: 600; }
 .toc-item.lvl3 { padding-left: 28px; }
 .toc-item.lvl4 { padding-left: 42px; }
@@ -48,7 +49,8 @@
 .toc-item.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-soft); }
 .prd-body { flex: 1; overflow: auto; padding: 16px 18px 40px; }
 .prd-section { scroll-margin-top: 12px; }
-.prd-section h2, .prd-section h3, .prd-section h4 { margin: 18px 0 8px; line-height: 1.4; }
+.prd-section h1, .prd-section h2, .prd-section h3, .prd-section h4 { margin: 18px 0 8px; line-height: 1.4; }
+.prd-section h1 { font-size: 18px; }
 .prd-section h2 { font-size: 16px; }
 .prd-section h3 { font-size: 14px; }
 .prd-section h4 { font-size: 13px; }
@@ -227,11 +229,14 @@ body.flow-fullscreen #canvasWrap { width: 100vw; }
 }
 .status-tag.confirmed { background: #e8f7ee; color: #23a55a; }
 .status-tag.deprecated { background: #feecea; color: var(--warn); }
-.canvas-toolbar button, .prd-head button {
+.nav-foot {
+  border-top: 1px solid var(--border); padding: 8px; display: flex; gap: 6px;
+}
+.nav-foot button, .canvas-toolbar button, .prd-head button {
   border: 1px solid var(--border); background: #fff; color: var(--text2);
   border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer;
 }
-.canvas-toolbar button:hover, .prd-head button:hover {
+.nav-foot button:hover, .canvas-toolbar button:hover, .prd-head button:hover {
   border-color: var(--accent); color: var(--accent);
 }
 
@@ -359,7 +364,7 @@ body.flow-fullscreen #canvasWrap { width: 100vw; }
 .link-line:hover, .link-line.hl { stroke: #ff9f0a; stroke-width: 2.2; }
 .link-arrow { fill: #9aa3af; }
 .link-arrow.hl { fill: #ff9f0a; }
-.link-label { font-size: 11px; fill: var(--text2); paint-order: stroke; stroke: #eef0f3; stroke-width: 4px; }
+.link-label { font-size: 11px; fill: var(--text2); font-weight: 500; paint-order: stroke; stroke: #eef0f3; stroke-width: 4px; pointer-events: none; }
 .link-label.hl { fill: #ff9f0a; font-weight: 600; }
 
 /* 空画布提示 */
@@ -389,6 +394,7 @@ body.flow-fullscreen #canvasWrap { width: 100vw; }
       <span class="nav-count" id="navPageCount"></span>
     </div>
     <div class="nav-tree" id="navTree"><!-- JS 渲染页面树 --></div>
+
   </aside>
 
   <!-- ── 中栏：画布详情（原型页面 / 原型卡片展示区） ── -->
@@ -400,7 +406,7 @@ body.flow-fullscreen #canvasWrap { width: 100vw; }
       <span id="zoomLabel" class="zoom-label">100%</span>
       <button id="zoomInBtn" title="放大">＋</button>
       <button id="originBtn" title="画布回到原点">⌂ 原点</button>
-      <button id="fitAllBtn" title="适应当前页面全部内容">⤢ 全局</button>
+      <button id="fitAllBtn" title="自动适应全部内容（当前页面）">⤢ 适应内容</button>
       <button id="focusBtn" title="聚焦当前选中的原型卡片">◎ 聚焦</button>
       <button id="flowFullscreenBtn" title="隐藏画布目录和 PRD，进入全屏流程原型展示">⛶ 全屏原型</button>
       <button id="exportBtn" class="hidden" title="导出原型">📦 导出</button>
@@ -422,7 +428,7 @@ body.flow-fullscreen #canvasWrap { width: 100vw; }
       <span class="prd-title">产品需求说明书</span>
       <span class="prd-actions">
         <button id="prdEditBtn" title="编辑产品需求说明书">✎ 编辑</button>
-        <button id="prdSaveBtn" class="hidden" title="另存为 HTML（Ctrl+S）">✔ 保存</button>
+        <button id="prdSaveBtn" class="hidden" title="下载更新后的 HTML（Ctrl+S）">✔ 保存</button>
         <button id="prdCancelBtn" class="hidden" title="放弃本次修改">✕ 取消</button>
         <button id="prdTocBtn" class="prd-toc-toggle is-open" aria-label="收起目录" aria-expanded="true" title="收起目录">☰</button>
       </span>
@@ -932,20 +938,21 @@ function drawLinks() {
       `${ax - as * Math.cos(ang + 0.45)},${ay - as * Math.sin(ang + 0.45)}`);
     arrow.setAttribute('class', 'link-arrow');
 
-    // 标签：触发（+条件）
+    // 标签：优先 label，其次 trigger / note；悬停显示条件与补充说明
+    const labelText = lnk.label || lnk.trigger || lnk.note || '';
     const label = document.createElementNS(SVG_NS, 'text');
     label.setAttribute('x', mx); label.setAttribute('y', my - 6);
     label.setAttribute('text-anchor', 'middle');
     label.setAttribute('class', 'link-label');
-    label.textContent = lnk.trigger || lnk.note || '';
+    label.textContent = labelText;
 
     svg.appendChild(path); svg.appendChild(arrow); svg.appendChild(label);
 
     // 悬停显示完整信息；点击 → 聚焦目标卡片并联动 PRD
-    const tip = [lnk.trigger, lnk.condition, lnk.note].filter(Boolean).join('　|　');
+    const tip = [lnk.label, lnk.trigger, lnk.condition, lnk.note].filter(Boolean).filter((v, i, arr) => arr.indexOf(v) === i).join('　|　');
     if (tip) {
       path.addEventListener('mouseenter', () => { label.textContent = tip; path.classList.add('hl'); arrow.classList.add('hl'); label.classList.add('hl'); });
-      path.addEventListener('mouseleave', () => { label.textContent = lnk.trigger || lnk.note || ''; path.classList.remove('hl'); arrow.classList.remove('hl'); label.classList.remove('hl'); });
+      path.addEventListener('mouseleave', () => { label.textContent = labelText; path.classList.remove('hl'); arrow.classList.remove('hl'); label.classList.remove('hl'); });
     }
     path.addEventListener('click', () => focusCard(lnk.to));
   }
@@ -1081,7 +1088,7 @@ function renderPrdEditor(body, toc, sections) {
     head.appendChild(title);
     const level = document.createElement('select');
     level.className = 'prd-edit-level';
-    for (const l of [2, 3, 4]) {
+    for (const l of [1, 2, 3, 4]) {
       const o = document.createElement('option');
       o.value = String(l); o.textContent = 'H' + l;
       if ((sec.level || 2) === l) o.selected = true;
@@ -1137,10 +1144,9 @@ async function savePrd() {
     state.prdEditing = false;
     setPrdButtons(false);
     renderPrd();
-    setPrdStatus('已保存 ' + filename, 'ok');
+    setPrdStatus('已下载 ' + filename + '；原文件未覆盖。', 'ok');
   } catch (err) {
-    if (err?.name === 'AbortError') return;
-    setPrdStatus('保存失败：' + err.message, 'err');
+    setPrdStatus('保存失败：' + (err && err.message ? err.message : err), 'err');
   } finally {
     state.portableBusy = false;
   }
@@ -1212,7 +1218,7 @@ function bindPrdResizer() {
   });
 }
 
-/* 打包当前数据并另存为；未保存的编辑合并到同一次保存。 */
+/* 浏览器直接打包当前数据；未保存的编辑合并到同一次下载。 */
 async function exportSingleFile() {
   if (state.portableBusy) return;
   state.portableBusy = true;
@@ -1226,9 +1232,8 @@ async function exportSingleFile() {
       setPrdButtons(false);
       renderPrd();
     }
-    setPrdStatus('已保存 ' + filename, 'ok');
+    setPrdStatus('已下载 ' + filename + '；原文件未覆盖。', 'ok');
   } catch (err) {
-    if (err?.name === 'AbortError') return;
     setPrdStatus('导出失败：' + err.message, 'err');
   } finally {
     state.portableBusy = false;
@@ -1306,28 +1311,23 @@ async function buildPortableHtml(data) {
   return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
 }
 
+function timestampSuffix(date = new Date()) {
+  const p = n => String(n).padStart(2, '0');
+  return date.getFullYear() + p(date.getMonth() + 1) + p(date.getDate()) + '-' + p(date.getHours()) + p(date.getMinutes()) + p(date.getSeconds());
+}
+
 async function downloadWorkbench(data, suffix = '') {
-  if (typeof window.showSaveFilePicker !== 'function') {
-    throw new Error('当前浏览器不支持选择保存位置，请使用 Chrome 或 Edge 打开工作台');
-  }
-  const title = String(data.project?.title || 'prototype').replace(/[<>:"/\\|?*\x00-\x1f]/g, '-').replace(/\.+$/g, '').trim() || 'prototype';
-  const suggestedName = title + suffix + '-' + timestampSuffix() + '.html';
-  // 在用户点击后的首次异步操作中打开系统窗口，保留用户激活状态。
-  const handle = await window.showSaveFilePicker({
-    suggestedName,
-    types: [{ description: 'HTML 文件', accept: { 'text/html': ['.html'] } }],
-    excludeAcceptAllOption: true,
-  });
   const html = await buildPortableHtml(data);
-  const writable = await handle.createWritable();
-  try {
-    await writable.write(new Blob([html], { type: 'text/html;charset=utf-8' }));
-    await writable.close();
-  } catch (err) {
-    try { await writable.abort(); } catch (_) { /* 保留原始保存错误 */ }
-    throw err;
-  }
-  const filename = handle.name;
+  const title = String(data.project?.title || 'prototype').replace(/[<>:"/\\|?*\x00-\x1f]/g, '-').replace(/\.+$/g, '').trim() || 'prototype';
+  const filename = title + suffix + '-' + timestampSuffix() + '.html';
+  const url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
   return filename;
 }
 
@@ -1368,7 +1368,7 @@ function init() {
 
   $('#prdEditBtn').classList.remove('hidden');
   $('#prdEditBtn').title = '编辑产品需求说明书';
-  $('#prdSaveBtn').title = '下载包含修改内容的 HTML（Ctrl+S）';
+  $('#prdSaveBtn').title = '下载新的 HTML（Ctrl+S）';
   $('#prdEditBtn').addEventListener('click', enterPrdEdit);
   $('#prdSaveBtn').addEventListener('click', savePrd);
   $('#prdCancelBtn').addEventListener('click', cancelPrdEdit);

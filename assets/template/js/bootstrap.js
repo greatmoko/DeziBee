@@ -35,7 +35,7 @@ function init() {
 
   $('#prdEditBtn').classList.remove('hidden');
   $('#prdEditBtn').title = '编辑产品需求说明书';
-  $('#prdSaveBtn').title = '下载包含修改内容的 HTML（Ctrl+S）';
+  $('#prdSaveBtn').title = '下载新的 HTML（Ctrl+S）';
   $('#prdEditBtn').addEventListener('click', enterPrdEdit);
   $('#prdSaveBtn').addEventListener('click', savePrd);
   $('#prdCancelBtn').addEventListener('click', cancelPrdEdit);

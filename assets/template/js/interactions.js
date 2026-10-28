@@ -64,7 +64,7 @@ function bindPrdResizer() {
   });
 }
 
-/* 打包当前数据并另存为；未保存的编辑合并到同一次保存。 */
+/* 浏览器直接打包当前数据；未保存的编辑合并到同一次下载。 */
 async function exportSingleFile() {
   if (state.portableBusy) return;
   state.portableBusy = true;
@@ -78,9 +78,8 @@ async function exportSingleFile() {
       setPrdButtons(false);
       renderPrd();
     }
-    setPrdStatus('已保存 ' + filename, 'ok');
+    setPrdStatus('已下载 ' + filename + '；原文件未覆盖。', 'ok');
   } catch (err) {
-    if (err?.name === 'AbortError') return;
     setPrdStatus('导出失败：' + err.message, 'err');
   } finally {
     state.portableBusy = false;

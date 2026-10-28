@@ -111,7 +111,7 @@ function local(root, base, ref) {
   if (/^(?:[a-z][a-z\d+.-]*:|\/|\\)/i.test(ref)) fail('Export requires local relative resources: ' + ref);
   const candidate = fs.realpathSync(path.resolve(base, decodeURIComponent(ref.split(/[?#]/)[0])));
   const relative = path.relative(fs.realpathSync(root), candidate);
-  if (relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) fail('Resource escapes demo directory: ' + ref);
+  if (relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) fail('Resource escapes prototype directory: ' + ref);
   if (!fs.statSync(candidate).isFile()) fail('Resource is not a file: ' + ref);
   return candidate;
 }
@@ -125,6 +125,16 @@ function assets(root, base, text) {
   }
   return text.replace(/(\b(?:src|href|poster)\s*=\s*)(["'])([^"']+)\2/gi, (all, prefix, quote, ref) => prefix + quote + inline(ref) + quote)
     .replace(/(?<![\w-])url\(\s*(["']?)([^"')]+)\1\s*\)/gi, (all, quote, ref) => 'url("' + inline(ref.trim()) + '")');
+}
+function timestampSuffix(date = new Date()) {
+  const p = n => String(n).padStart(2, '0');
+  return date.getFullYear() + p(date.getMonth() + 1) + p(date.getDate()) + '-' + p(date.getHours()) + p(date.getMinutes()) + p(date.getSeconds());
+}
+function stampedOutputPath(output) {
+  const ext = path.extname(output);
+  const base = path.basename(output, ext);
+  if (/(?:^|[-_])\d{8}-\d{6}$/.test(base)) return output;
+  return path.join(path.dirname(output), base + '-' + timestampSuffix() + ext);
 }
 function bundle(index, output) {
   const root = path.dirname(path.resolve(index));
@@ -149,23 +159,25 @@ function bundle(index, output) {
     new vm.Script(source);
     return '<script>\n' + source.replace(/<\/script/gi, '<\\/script') + '\n</script>';
   });
-  if (fs.existsSync(output)) fail('Output already exists; choose a new export filename');
-  fs.writeFileSync(output, text, {encoding:'utf8', flag:'wx'});
-  return {ok:true, output:path.resolve(output), scope:'Local assets embedded; prototype scripts may still make requests if authored to do so. No prototype code was executed.'};
+  const target = stampedOutputPath(output);
+  if (fs.existsSync(target)) fail('Output already exists; choose a new export filename');
+  fs.writeFileSync(target, text, {encoding:'utf8', flag:'wx'});
+  return {ok:true, output:path.resolve(target), requested:path.resolve(output), scope:'Local assets embedded; prototype scripts may still make requests if authored to do so. No prototype code was executed.'};
 }
 function main(args) {
   const [command, file, second, ...rest] = args;
-  if (!command || command === '--help') return {ok:true, usage:['init TARGET','inspect INDEX','read INDEX [--pages ids] [--cards ids] [--sections ids]','validate INDEX','apply INDEX DATA.json','edit-cards INDEX EDITS.json','export INDEX OUTPUT.html'], runtime:'Node.js built-ins only; no npm install'};
+  if (!command || command === '--help') return {ok:true, usage:['init TARGET','inspect INDEX','read INDEX [--pages ids] [--cards ids] [--sections ids]','validate INDEX','apply INDEX DATA.json','edit-cards INDEX EDITS.json','export INDEX OUTPUT.html (timestamp appended)'], runtime:'Node.js built-ins only; no npm install'};
   if (!file) fail('Missing path; use --help');
   if (command === 'init') {
-    const root = path.resolve(file), demo = path.join(root, 'demo');
-    if (fs.existsSync(demo)) fail('demo already exists; refusing to overwrite');
+    const root = path.resolve(file);
     const source = path.resolve(__dirname, '../assets/template');
+    for (const name of ['index.html', 'demo']) {
+      if (fs.existsSync(path.join(root, name))) fail(name + ' already exists; refusing to overwrite');
+    }
     checked(locate(load(path.join(source,'index.html'))).data, load(path.join(source,'index.html')));
     fs.mkdirSync(root, {recursive:true});
-    fs.cpSync(source, demo, {recursive:true, errorOnExist:true, force:false});
-    for (const name of ['prd','uploads']) fs.mkdirSync(path.join(root,name), {recursive:true});
-    return {ok:true, index:path.join(demo,'index.html')};
+    fs.copyFileSync(path.join(source,'index.html'), path.join(root,'index.html'), fs.constants.COPYFILE_EXCL);
+    return {ok:true, index:path.join(root,'index.html')};
   }
   const text = load(file), {data} = locate(text), cards = data.pages.flatMap(p => p.cards || []), sections = data.prd.sections;
   if (command === 'inspect') return {ok:true, file_hash:hash(text), project:data.project, pages:data.pages.map(p => ({id:p.id,name:p.name,prdId:p.prdId,cards:(p.cards||[]).map(c=>({id:c.id,name:c.name,prdId:c.prdId,html_chars:c.html.length}))})),sections:sections.map(s=>({id:s.id,title:s.title}))};

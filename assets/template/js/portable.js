@@ -69,27 +69,22 @@ async function buildPortableHtml(data) {
   return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
 }
 
+function timestampSuffix(date = new Date()) {
+  const p = n => String(n).padStart(2, '0');
+  return date.getFullYear() + p(date.getMonth() + 1) + p(date.getDate()) + '-' + p(date.getHours()) + p(date.getMinutes()) + p(date.getSeconds());
+}
+
 async function downloadWorkbench(data, suffix = '') {
-  if (typeof window.showSaveFilePicker !== 'function') {
-    throw new Error('当前浏览器不支持选择保存位置，请使用 Chrome 或 Edge 打开工作台');
-  }
-  const title = String(data.project?.title || 'prototype').replace(/[<>:"/\\|?*\x00-\x1f]/g, '-').replace(/\.+$/g, '').trim() || 'prototype';
-  const suggestedName = title + suffix + '-' + timestampSuffix() + '.html';
-  // 在用户点击后的首次异步操作中打开系统窗口，保留用户激活状态。
-  const handle = await window.showSaveFilePicker({
-    suggestedName,
-    types: [{ description: 'HTML 文件', accept: { 'text/html': ['.html'] } }],
-    excludeAcceptAllOption: true,
-  });
   const html = await buildPortableHtml(data);
-  const writable = await handle.createWritable();
-  try {
-    await writable.write(new Blob([html], { type: 'text/html;charset=utf-8' }));
-    await writable.close();
-  } catch (err) {
-    try { await writable.abort(); } catch (_) { /* 保留原始保存错误 */ }
-    throw err;
-  }
-  const filename = handle.name;
+  const title = String(data.project?.title || 'prototype').replace(/[<>:"/\\|?*\x00-\x1f]/g, '-').replace(/\.+$/g, '').trim() || 'prototype';
+  const filename = title + suffix + '-' + timestampSuffix() + '.html';
+  const url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
   return filename;
 }

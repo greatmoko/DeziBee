@@ -17,7 +17,7 @@ function renderPrdEditor(body, toc, sections) {
     head.appendChild(title);
     const level = document.createElement('select');
     level.className = 'prd-edit-level';
-    for (const l of [2, 3, 4]) {
+    for (const l of [1, 2, 3, 4]) {
       const o = document.createElement('option');
       o.value = String(l); o.textContent = 'H' + l;
       if ((sec.level || 2) === l) o.selected = true;
@@ -73,10 +73,9 @@ async function savePrd() {
     state.prdEditing = false;
     setPrdButtons(false);
     renderPrd();
-    setPrdStatus('已保存 ' + filename, 'ok');
+    setPrdStatus('已下载 ' + filename + '；原文件未覆盖。', 'ok');
   } catch (err) {
-    if (err?.name === 'AbortError') return;
-    setPrdStatus('保存失败：' + err.message, 'err');
+    setPrdStatus('保存失败：' + (err && err.message ? err.message : err), 'err');
   } finally {
     state.portableBusy = false;
   }

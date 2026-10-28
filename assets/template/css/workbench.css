@@ -69,11 +69,14 @@ body.flow-fullscreen #canvasWrap { width: 100vw; }
 }
 .status-tag.confirmed { background: #e8f7ee; color: #23a55a; }
 .status-tag.deprecated { background: #feecea; color: var(--warn); }
-.canvas-toolbar button, .prd-head button {
+.nav-foot {
+  border-top: 1px solid var(--border); padding: 8px; display: flex; gap: 6px;
+}
+.nav-foot button, .canvas-toolbar button, .prd-head button {
   border: 1px solid var(--border); background: #fff; color: var(--text2);
   border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer;
 }
-.canvas-toolbar button:hover, .prd-head button:hover {
+.nav-foot button:hover, .canvas-toolbar button:hover, .prd-head button:hover {
   border-color: var(--accent); color: var(--accent);
 }
 
@@ -201,7 +204,7 @@ body.flow-fullscreen #canvasWrap { width: 100vw; }
 .link-line:hover, .link-line.hl { stroke: #ff9f0a; stroke-width: 2.2; }
 .link-arrow { fill: #9aa3af; }
 .link-arrow.hl { fill: #ff9f0a; }
-.link-label { font-size: 11px; fill: var(--text2); paint-order: stroke; stroke: #eef0f3; stroke-width: 4px; }
+.link-label { font-size: 11px; fill: var(--text2); font-weight: 500; paint-order: stroke; stroke: #eef0f3; stroke-width: 4px; pointer-events: none; }
 .link-label.hl { fill: #ff9f0a; font-weight: 600; }
 
 /* 空画布提示 */

@@ -173,20 +173,21 @@ function drawLinks() {
       `${ax - as * Math.cos(ang + 0.45)},${ay - as * Math.sin(ang + 0.45)}`);
     arrow.setAttribute('class', 'link-arrow');
 
-    // 标签：触发（+条件）
+    // 标签：优先 label，其次 trigger / note；悬停显示条件与补充说明
+    const labelText = lnk.label || lnk.trigger || lnk.note || '';
     const label = document.createElementNS(SVG_NS, 'text');
     label.setAttribute('x', mx); label.setAttribute('y', my - 6);
     label.setAttribute('text-anchor', 'middle');
     label.setAttribute('class', 'link-label');
-    label.textContent = lnk.trigger || lnk.note || '';
+    label.textContent = labelText;
 
     svg.appendChild(path); svg.appendChild(arrow); svg.appendChild(label);
 
     // 悬停显示完整信息；点击 → 聚焦目标卡片并联动 PRD
-    const tip = [lnk.trigger, lnk.condition, lnk.note].filter(Boolean).join('　|　');
+    const tip = [lnk.label, lnk.trigger, lnk.condition, lnk.note].filter(Boolean).filter((v, i, arr) => arr.indexOf(v) === i).join('　|　');
     if (tip) {
       path.addEventListener('mouseenter', () => { label.textContent = tip; path.classList.add('hl'); arrow.classList.add('hl'); label.classList.add('hl'); });
-      path.addEventListener('mouseleave', () => { label.textContent = lnk.trigger || lnk.note || ''; path.classList.remove('hl'); arrow.classList.remove('hl'); label.classList.remove('hl'); });
+      path.addEventListener('mouseleave', () => { label.textContent = labelText; path.classList.remove('hl'); arrow.classList.remove('hl'); label.classList.remove('hl'); });
     }
     path.addEventListener('click', () => focusCard(lnk.to));
   }

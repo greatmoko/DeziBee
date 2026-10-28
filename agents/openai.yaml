@@ -1,0 +1,4 @@
+interface:
+  display_name: "DeziBee"
+  short_description: "设计可交互 HTML 原型、页面状态与流程图，并同步维护关联 PRD"
+  default_prompt: "使用 $dezibee 将产品需求整理为可交互 HTML 原型和同步 PRD，沿用项目现有设计规范。"

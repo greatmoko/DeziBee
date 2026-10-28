@@ -23,6 +23,6 @@ if (!html.includes('<script id="workbench-data">')) {
   html = html.replace(/<script>(?=\s*\/\*(?:(?!<\/script>)[\s\S])*?const WORKBENCH_DATA\s*=)/, '<script id="workbench-data">');
 }
 if ((html.match(/<script id="workbench-data">/g) || []).length !== 1) throw new Error('Expected one data script');
-html = html.replace('title="直接编辑产品需求说明书；保存会写回 demo/index.html"','title="编辑产品需求说明书"').replace('title="保存到 demo/index.html（Ctrl+S）"','title="另存为 HTML（Ctrl+S）"');
+html = html.replace('title="直接编辑产品需求说明书；保存会写回 demo/index.html"','title="编辑产品需求说明书"').replace('title="保存到 demo/index.html（Ctrl+S）"','title="下载新的 HTML（Ctrl+S）"');
 fs.writeFileSync(index, html, 'utf8');
 console.log(JSON.stringify({ok:true,index,bytes:Buffer.byteLength(html)}));

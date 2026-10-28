@@ -33,6 +33,7 @@
   cursor: pointer; border-left: 3px solid transparent;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.toc-item.lvl1 { padding-left: 8px; font-weight: 700; color: var(--text); }
 .toc-item.lvl2 { padding-left: 14px; font-weight: 600; }
 .toc-item.lvl3 { padding-left: 28px; }
 .toc-item.lvl4 { padding-left: 42px; }
@@ -40,7 +41,8 @@
 .toc-item.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-soft); }
 .prd-body { flex: 1; overflow: auto; padding: 16px 18px 40px; }
 .prd-section { scroll-margin-top: 12px; }
-.prd-section h2, .prd-section h3, .prd-section h4 { margin: 18px 0 8px; line-height: 1.4; }
+.prd-section h1, .prd-section h2, .prd-section h3, .prd-section h4 { margin: 18px 0 8px; line-height: 1.4; }
+.prd-section h1 { font-size: 18px; }
 .prd-section h2 { font-size: 16px; }
 .prd-section h3 { font-size: 14px; }
 .prd-section h4 { font-size: 13px; }
