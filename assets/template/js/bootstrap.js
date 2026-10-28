@@ -7,10 +7,13 @@ function init() {
   if (prdTitle) prdTitle.textContent = '产品需求说明书';
   buildNavTree();
   renderPrd();
+  state.selectedCardId = D.pages[0]?.cards?.[0]?.id || null;
   renderPage();
+  markSelected();
   bindViewport();
   bindPrdResizer();
-  syncPrdToPage(state.currentPageId);   // 首屏 PRD 跟随初始页面
+  if (D.pages[0]?.cards?.[0]?.prdId) openPrdForCard(state.selectedCardId);
+  else syncPrdToPage(state.currentPageId);
   // 首屏自动适应内容
   requestAnimationFrame(() => fitAll());
 

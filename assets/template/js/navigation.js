@@ -80,13 +80,19 @@ function buildNavTree() {
 function switchPage(pageId, opts = {}) {
   if (!cardIndexHasPage(pageId)) return;
   state.currentPageId = pageId;
-  state.selectedCardId = null;
+  state.selectedCardId = D.pages.find(p => p.id === pageId)?.cards?.[0]?.id || null;
   document.querySelectorAll('.nav-item').forEach(n => {
     n.classList.toggle('active', n.dataset.pageId === pageId);
   });
   renderPage();
+  markSelected();
+  fitAll();
   // 页面 → PRD 联动：右栏自动跳到该页对应章节（focusCard 聚焦卡片时自带章节定位，跳过）
-  if (!opts.skipPrd) syncPrdToPage(pageId);
+  if (!opts.skipPrd) {
+    const first = D.pages.find(p => p.id === pageId)?.cards?.[0];
+    if (first?.prdId) openPrdForCard(first.id);
+    else syncPrdToPage(pageId);
+  }
 }
 
 /* 页面 → PRD 章节映射：page.prdId 优先，否则取该页第一张带 prdId 的卡片 */

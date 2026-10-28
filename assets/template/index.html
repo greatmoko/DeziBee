@@ -406,7 +406,7 @@ body.flow-fullscreen #canvasWrap { width: 100vw; }
       <span id="zoomLabel" class="zoom-label">100%</span>
       <button id="zoomInBtn" title="放大">＋</button>
       <button id="originBtn" title="画布回到原点">⌂ 原点</button>
-      <button id="fitAllBtn" title="自动适应全部内容（当前页面）">⤢ 适应内容</button>
+      <button id="fitAllBtn" title="适应当前页面全部内容">⤢ 全局</button>
       <button id="focusBtn" title="聚焦当前选中的原型卡片">◎ 聚焦</button>
       <button id="flowFullscreenBtn" title="隐藏画布目录和 PRD，进入全屏流程原型展示">⛶ 全屏原型</button>
       <button id="exportBtn" class="hidden" title="导出原型">📦 导出</button>
@@ -576,13 +576,19 @@ function buildNavTree() {
 function switchPage(pageId, opts = {}) {
   if (!cardIndexHasPage(pageId)) return;
   state.currentPageId = pageId;
-  state.selectedCardId = null;
+  state.selectedCardId = D.pages.find(p => p.id === pageId)?.cards?.[0]?.id || null;
   document.querySelectorAll('.nav-item').forEach(n => {
     n.classList.toggle('active', n.dataset.pageId === pageId);
   });
   renderPage();
+  markSelected();
+  fitAll();
   // 页面 → PRD 联动：右栏自动跳到该页对应章节（focusCard 聚焦卡片时自带章节定位，跳过）
-  if (!opts.skipPrd) syncPrdToPage(pageId);
+  if (!opts.skipPrd) {
+    const first = D.pages.find(p => p.id === pageId)?.cards?.[0];
+    if (first?.prdId) openPrdForCard(first.id);
+    else syncPrdToPage(pageId);
+  }
 }
 
 /* 页面 → PRD 章节映射：page.prdId 优先，否则取该页第一张带 prdId 的卡片 */
@@ -1340,10 +1346,13 @@ function init() {
   if (prdTitle) prdTitle.textContent = '产品需求说明书';
   buildNavTree();
   renderPrd();
+  state.selectedCardId = D.pages[0]?.cards?.[0]?.id || null;
   renderPage();
+  markSelected();
   bindViewport();
   bindPrdResizer();
-  syncPrdToPage(state.currentPageId);   // 首屏 PRD 跟随初始页面
+  if (D.pages[0]?.cards?.[0]?.prdId) openPrdForCard(state.selectedCardId);
+  else syncPrdToPage(state.currentPageId);
   // 首屏自动适应内容
   requestAnimationFrame(() => fitAll());
 
