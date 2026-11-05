@@ -17,7 +17,9 @@ function cardOuterSize(c) {
    滚动时浮现于内容之上，停止约 0.8 秒后自动淡出（移动端 overlay 风格） */
 const FRAME_EXTRAS =
   '<style>::-webkit-scrollbar{width:0;height:0}html{scrollbar-width:none}</style>' +
-  '<script>(function(){var bar=null,timer=0;function refresh(){' +
+  '<script>(function(){document.addEventListener("pointerdown",function(){' +
+  'parent.postMessage({type:"dezibee-card-select"},"*")},true);' +
+  'var bar=null,timer=0;function refresh(){' +
   'var de=document.documentElement,vh=de.clientHeight,sh=de.scrollHeight;' +
   'var st=de.scrollTop||document.body.scrollTop||0;' +
   'if(sh<=vh+1){if(bar)bar.style.opacity="0";return;}' +
@@ -30,6 +32,17 @@ const FRAME_EXTRAS =
   'clearTimeout(timer);timer=setTimeout(function(){bar.style.opacity="0"},800);}' +
   'addEventListener("scroll",refresh);addEventListener("resize",refresh);' +
   'addEventListener("load",function(){setTimeout(refresh,60)});})();<\/script>';
+
+window.addEventListener('message', (event) => {
+  if (event.data?.type !== 'dezibee-card-select') return;
+  const frame = Array.from(document.querySelectorAll('#world .proto-card iframe'))
+    .find(item => item.contentWindow === event.source);
+  const cardId = frame?.closest('.proto-card')?.dataset.cardId;
+  if (!cardId || state.selectedCardId === cardId) return;
+  state.selectedCardId = cardId;
+  markSelected();
+  openPrdForCard(cardId);
+});
 
 function renderPage() {
   buildCardIndex();

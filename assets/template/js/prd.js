@@ -42,9 +42,20 @@ function openPrdForCard(cardId) {
 
 function openPrdSection(secId, opts = {}) {
   if (state.prdEditing) return;   // 编辑 PRD 时不抢滚动位置
-  const node = document.getElementById('sec-' + CSS.escape(secId));
-  if (!node) return;
-  node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const node = document.getElementById('sec-' + secId);
+  const body = $('#prdBody');
+  if (!node || !body.contains(node)) return;
+  const top = body.scrollTop + node.getBoundingClientRect().top - body.getBoundingClientRect().top - 12;
+  cancelAnimationFrame(body._prdScrollFrame);
+  const start = body.scrollTop;
+  const target = Math.max(0, Math.min(top, body.scrollHeight - body.clientHeight));
+  const started = performance.now();
+  function animate(now) {
+    const progress = Math.min((now - started) / 600, 1);
+    body.scrollTop = start + (target - start) * (1 - Math.pow(1 - progress, 3));
+    if (progress < 1) body._prdScrollFrame = requestAnimationFrame(animate);
+  }
+  body._prdScrollFrame = requestAnimationFrame(animate);
   node.classList.remove('section-flash'); void node.offsetWidth;
   node.classList.add('section-flash');
   // TOC 高亮

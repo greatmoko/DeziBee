@@ -788,7 +788,9 @@ function cardOuterSize(c) {
    滚动时浮现于内容之上，停止约 0.8 秒后自动淡出（移动端 overlay 风格） */
 const FRAME_EXTRAS =
   '<style>::-webkit-scrollbar{width:0;height:0}html{scrollbar-width:none}</style>' +
-  '<script>(function(){var bar=null,timer=0;function refresh(){' +
+  '<script>(function(){document.addEventListener("pointerdown",function(){' +
+  'parent.postMessage({type:"dezibee-card-select"},"*")},true);' +
+  'var bar=null,timer=0;function refresh(){' +
   'var de=document.documentElement,vh=de.clientHeight,sh=de.scrollHeight;' +
   'var st=de.scrollTop||document.body.scrollTop||0;' +
   'if(sh<=vh+1){if(bar)bar.style.opacity="0";return;}' +
@@ -801,6 +803,17 @@ const FRAME_EXTRAS =
   'clearTimeout(timer);timer=setTimeout(function(){bar.style.opacity="0"},800);}' +
   'addEventListener("scroll",refresh);addEventListener("resize",refresh);' +
   'addEventListener("load",function(){setTimeout(refresh,60)});})();<\/script>';
+
+window.addEventListener('message', (event) => {
+  if (event.data?.type !== 'dezibee-card-select') return;
+  const frame = Array.from(document.querySelectorAll('#world .proto-card iframe'))
+    .find(item => item.contentWindow === event.source);
+  const cardId = frame?.closest('.proto-card')?.dataset.cardId;
+  if (!cardId || state.selectedCardId === cardId) return;
+  state.selectedCardId = cardId;
+  markSelected();
+  openPrdForCard(cardId);
+});
 
 function renderPage() {
   buildCardIndex();
@@ -1010,9 +1023,20 @@ function openPrdForCard(cardId) {
 
 function openPrdSection(secId, opts = {}) {
   if (state.prdEditing) return;   // 编辑 PRD 时不抢滚动位置
-  const node = document.getElementById('sec-' + CSS.escape(secId));
-  if (!node) return;
-  node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const node = document.getElementById('sec-' + secId);
+  const body = $('#prdBody');
+  if (!node || !body.contains(node)) return;
+  const top = body.scrollTop + node.getBoundingClientRect().top - body.getBoundingClientRect().top - 12;
+  cancelAnimationFrame(body._prdScrollFrame);
+  const start = body.scrollTop;
+  const target = Math.max(0, Math.min(top, body.scrollHeight - body.clientHeight));
+  const started = performance.now();
+  function animate(now) {
+    const progress = Math.min((now - started) / 600, 1);
+    body.scrollTop = start + (target - start) * (1 - Math.pow(1 - progress, 3));
+    if (progress < 1) body._prdScrollFrame = requestAnimationFrame(animate);
+  }
+  body._prdScrollFrame = requestAnimationFrame(animate);
   node.classList.remove('section-flash'); void node.offsetWidth;
   node.classList.add('section-flash');
   // TOC 高亮
